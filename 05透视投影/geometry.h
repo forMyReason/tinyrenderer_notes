@@ -3,10 +3,14 @@
 
 #include <cmath>
 
+// 声明了一个模板结构体Vec2，接收任意类型的t作参数
+// 这里的class t表示定义一个名为t的类。它与模板无关，只是一个普通的类定义。
 template <class t> struct Vec2 {
     t x, y;
     Vec2<t>() : x(t()), y(t()) {}
     Vec2<t>(t _x, t _y) : x(_x), y(_y) {}
+
+    // 拷贝构造函数
     Vec2<t>(const Vec2<t> &v) : x(t()), y(t()) { *this = v; }
     Vec2<t> & operator =(const Vec2<t> &v) {
         if (this != &v) {
@@ -71,19 +75,26 @@ template <class t> std::ostream& operator<<(std::ostream& s, Vec3<t>& v) {
 const int DEFAULT_ALLOC=4;
 
 class Matrix {
-    std::vector<std::vector<float> > m;
+    std::vector<std::vector<float> > m;     //二维向量，存储矩阵元素，是不是vector默认是二维的？
     int rows, cols;
 public:
-    Matrix(int r=DEFAULT_ALLOC, int c=DEFAULT_ALLOC);
+    Matrix(int r=DEFAULT_ALLOC, int c=DEFAULT_ALLOC);   // 构造函数，初始化矩阵，默认大小为4*4
+
     inline int nrows();
     inline int ncols();
 
-    static Matrix identity(int dimensions);
+    // TODO:静态函数和成员函数的区别
+    // 静态函数
+    static Matrix identity(int dimensions);             // 返回一个单位矩阵
+
+    // 重载运算符
     std::vector<float>& operator[](const int i);
     Matrix operator*(const Matrix& a);
+
     Matrix transpose();
     Matrix inverse();
 
+    // TODO:友元函数
     friend std::ostream& operator<<(std::ostream& s, Matrix& m);
 };
 

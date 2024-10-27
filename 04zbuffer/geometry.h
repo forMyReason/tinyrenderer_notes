@@ -26,6 +26,7 @@ template <size_t DIM, typename T> struct vec
     // 下标运算符重载，用于访问向量中的元素，一个用于非常量对象，一个用于常量对象
     T& operator[](const size_t i)
     {
+        // NOTE:assert
         // assert是c++的一个宏，用于在运行时检查条件是否为真
         // 如果为假，输出错误信息，并终止程序。并返回失败的条件和代码的位置，方便调试
         assert(i<DIM);
@@ -79,6 +80,7 @@ template<size_t DIM,typename T> T operator*(const vec<DIM,T>& lhs, const vec<DIM
     for (size_t i=DIM; i--; ret+=lhs[i]*rhs[i]);
     return ret;
 }
+// NOTE:const
 // 使用const修改参数：可以确保函数内部不会修改传入的参数
 // 使用const引用可以避免拷贝临时对象，从而提高性能
 // c++中，operator overloading是通过定义一个特殊的函数来实现的，而不是通过override关键字
