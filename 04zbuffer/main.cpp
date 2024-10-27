@@ -62,34 +62,41 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
     Vec2f clamp(image.get_width()-1, image.get_height()-1);
     //确定三角形的边框
-    for (int i=0; i<3; i++) {
-        for (int j=0; j<2; j++) {
-            bboxmin[j] = std::max(0.f,      std::min(bboxmin[j], pts[i][j]));
-            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
+    for (int i=0; i<3; i++) {       //便利三角形的三个顶点
+        for (int j=0; j<2; j++) {   //遍历每个顶点的xy分量
+            bboxmin[j] = std::max(0.f,      std::min(bboxmin[j], pts[i][j]));       // 当前bboxmin[j]和pts[i][j]的最小值，切确保不小于0
+            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));       // 当前bboxmax[j]和pts[i][j]的最大值，切确保不大于画布大小
         }
     }
+
+    //遍历bounding box中的每一个点
     Vec3f P;
-    //遍历边框中的每一个点
     for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
         for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
-            //计算质心
+            //TODO:为啥进行位置微调？
             if (P.x > 600 && P.y > 500)
             {
                 P.x += 0.01;
             }
+            //求碰撞盒内每一个点的质心坐标
             Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
-            //质心坐标有一个负值，说明点在三角形外
-            if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
+            if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;            //质心坐标有一个负值，说明点在三角形外
+
             P.z = 0;
-            //计算zbuffer
-            for (int i=0; i<3; i++) P.z += pts[i][2]*bc_screen[i];
-            if (zbuffer[int(P.x+P.y*width)]<P.z) {
+            for (int i=0; i<3; i++)                 // P.z = A.z*bc_screen.x + B.z*bc_screen.y + C.z*bc_screen.z
+                P.z += pts[i][2]*bc_screen[i];      // 将每个顶点的z值乘质心坐标的分量求和
+            
+            // 如果P.z大于zbuffer中的深度，这意味着P点离相机更近，需要更新zbuffer和颜色
+            // 相机放在（0，0，z），Up direction是Y轴正方向，永远朝着-Z方向看，右手系
+            if (zbuffer[int(P.x+P.y*width)]<P.z)        // 第几个像素的zbuffer
+            {
                 zbuffer[int(P.x+P.y*width)] = P.z;
                 image.set(P.x, P.y, color);
             }
         }
     }
 }
+
 
 //世界坐标转屏幕坐标
 Vec3f world2screen(Vec3f v) {
