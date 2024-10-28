@@ -94,7 +94,7 @@ public:
     Matrix transpose();
     Matrix inverse();
 
-    // TODO:友元函数
+    // 友元函数
     friend std::ostream& operator<<(std::ostream& s, Matrix& m);
 };
 

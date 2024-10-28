@@ -33,15 +33,25 @@ Matrix v2m(Vec3f v) {
     return m;
 }
 
-//视角矩阵
 //将物体x，y坐标(-1,1)转换到屏幕坐标(100,700)    1/8width~7/8width
 //zbuffer(-1,1)转换到0~255
+// 视口变换矩阵，用于从NDC坐标系到屏幕坐标系的转换
+// xy是视口左下角的坐标，也就是最终渲染图像的原点位置；视口左下角通常对应屏幕坐标系原点(0,0)
+/**
+ * @param x 定义视口左下角在屏幕上的 x 轴向位置
+ * @param y 定义视口左下角在屏幕上的 y 轴向位置
+ * @attention xy通常是屏幕坐标的起始位置
+ * @param w 屏幕宽度
+ * @param h 屏幕高度
+ * @brief 视口变换矩阵，用于从NDC坐标系到屏幕坐标系的转换
+ * @return 视口变换矩阵
+ */
 Matrix viewport(int x, int y, int w, int h) {
     Matrix m = Matrix::identity(4);
     //第4列表示平移信息
     m[0][3] = x+w/2.f;
     m[1][3] = y+h/2.f;
-    m[2][3] = depth/2.f;
+    m[2][3] = depth/2.f;        // NDC在Z轴方向上[-1,1]，而深度缓冲区在[0,255]，所以要将Z轴坐标映射到[0,255]范围
     //对角线表示缩放信息
     m[0][0] = w/2.f;
     m[1][1] = h/2.f;
@@ -49,7 +59,12 @@ Matrix viewport(int x, int y, int w, int h) {
     return m;
 }
 
+// TODO：填色算法
+// NEXT:该看这里的填色算法了
 //绘制三角形(顶点坐标，uv坐标，tga指针，亮度，zbuffer)
+/**
+ * @param t0 三角形屏幕空间坐标的第一个顶点
+ */
 void triangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2i uv0, Vec2i uv1, Vec2i uv2, TGAImage &image, float intensity, int *zbuffer) {
     if (t0.y==t1.y && t0.y==t2.y) return;
     //分割成两个三角形
@@ -104,6 +119,7 @@ int main(int argc, char** argv) {
     } else {
         model = new Model("obj/african_head.obj");
     }
+
     //构造zbuffer
     zbuffer = new int[width*height];
     for (int i=0; i<width*height; i++) {
@@ -113,26 +129,24 @@ int main(int argc, char** argv) {
 
     //绘制
     {
-        //初始化投影矩阵
         Matrix Projection = Matrix::identity(4);
-        //初始化视角矩阵
         Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
         //投影矩阵[3][2]=-1/c，c为相机z坐标
         Projection[3][2] = -1.f/camera.z;
-        //构造tga
+
         TGAImage image(width, height, TGAImage::RGB);
-        //以模型面为循环控制变量
+
         for (int i=0; i<model->nfaces(); i++) {
-            std::vector<int> face = model->face(i);
+            std::vector<int> face = model->face(i);     // 返回第i个面的三个顶点索引
             Vec3i screen_coords[3];
             Vec3f world_coords[3];
             for (int j=0; j<3; j++) {
-                Vec3f v = model->vert(face[j]);
-                //视角矩阵*投影矩阵*坐标
+                Vec3f v = model->vert(face[j]);         // 对于第i个面的第j个顶点，返回顶点坐标，这里是世界坐标
+                // 矩阵乘法顺序不可修改
                 screen_coords[j] = m2v(ViewPort * Projection * v2m(v));
                 world_coords[j]  = v;
             }
-            //计算法向量
+            //TODO:计算法向量的时候向量的顺序
             Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]);
             n.normalize();
             //计算光照

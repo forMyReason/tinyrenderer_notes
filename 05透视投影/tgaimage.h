@@ -67,7 +67,7 @@ protected:
 	int height;
 	int bytespp;
 
-	bool   load_rle_data(std::ifstream &in);
+	bool load_rle_data(std::ifstream &in);
 	bool unload_rle_data(std::ofstream &out);
 public:
 	enum Format {

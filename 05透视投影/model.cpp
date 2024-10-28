@@ -67,9 +67,13 @@ Vec3f Model::vert(int i) {
 
 void Model::load_texture(std::string filename, const char *suffix, TGAImage &img) {
     std::string texfile(filename);
-    size_t dot = texfile.find_last_of(".");
+    size_t dot = texfile.find_last_of(".");\
+    // 查找最后一个出现特定字符的位置，返回position（index of last dot），如果没有找到，返回npos
     if (dot!=std::string::npos) {
+        // 截取位置0到dot位置（不包括dot位置）
         texfile = texfile.substr(0,dot) + std::string(suffix);
+        // cerr标准错误输出流，用于输出错误信息
+        // c_str()返回一个指向c风格字符串的指针，内容与string相同
         std::cerr << "texture file " << texfile << " loading " << (img.read_tga_file(texfile.c_str()) ? "ok" : "failed") << std::endl;
         img.flip_vertically();
     }

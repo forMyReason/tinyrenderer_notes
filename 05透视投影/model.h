@@ -8,7 +8,7 @@
 class Model {
 private:
 	std::vector<Vec3f> verts_;
-	std::vector<std::vector<Vec3i> > faces_; // attention, this Vec3i means vertex/uv/normal
+	std::vector<std::vector<Vec3i> > faces_; // NOTE: this Vec3i means vertex/uv/normal
 	std::vector<Vec3f> norms_;
 	std::vector<Vec2f> uv_;
 	TGAImage diffusemap_;
