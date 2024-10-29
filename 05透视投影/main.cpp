@@ -59,41 +59,39 @@ Matrix viewport(int x, int y, int w, int h) {
     return m;
 }
 
-// TODO：填色算法
-// NEXT:该看这里的填色算法了
-//绘制三角形(顶点坐标，uv坐标，tga指针，亮度，zbuffer)
 /**
- * @param t0 三角形屏幕空间坐标的第一个顶点
- */
+* @brief 分段绘制三角形_uv (屏幕空间顶点坐标，uv坐标，tga指针，亮度，zbuffer)
+* @param t0/t1/t2 三角形屏幕空间顶点坐标
+*/
 void triangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2i uv0, Vec2i uv1, Vec2i uv2, TGAImage &image, float intensity, int *zbuffer) {
     if (t0.y==t1.y && t0.y==t2.y) return;
-    //分割成两个三角形
+    //分割成两个三角形，t0<t1<t2
     if (t0.y>t1.y) { std::swap(t0, t1); std::swap(uv0, uv1); }
     if (t0.y>t2.y) { std::swap(t0, t2); std::swap(uv0, uv2); }
     if (t1.y>t2.y) { std::swap(t1, t2); std::swap(uv1, uv2); }
-    //用高度做循环控制
+
     int total_height = t2.y-t0.y;
-    for (int i=0; i<total_height; i++) {
-        //判断属于哪一部分以确定高度
+    for (int i=0; i<total_height; i++)
+    {
+        // 是否属于上半部分
         bool second_half = i>t1.y-t0.y || t1.y==t0.y;
         int segment_height = second_half ? t2.y-t1.y : t1.y-t0.y;
-        //计算当前的比例
+        //alpha表示当前点在t0与t2之间的比例，beta表示当前点在每一部分中间的比例
         float alpha = (float)i/total_height;
         float beta  = (float)(i-(second_half ? t1.y-t0.y : 0))/segment_height; // be careful: with above conditions no division by zero here
-        //A表示t0与t2之间的点
-        //B表示t0与t1之间的点
+        //A表示t0与t2之间的点，B表示t0与t1之间的点
+        //A是三角形左边的点，B是右边的点
         Vec3i A   =               t0  + Vec3f(t2-t0  )*alpha;
         Vec3i B   = second_half ? t1  + Vec3f(t2-t1  )*beta : t0  + Vec3f(t1-t0  )*beta;
-        //计算UV
         Vec2i uvA =               uv0 +      (uv2-uv0)*alpha;
         Vec2i uvB = second_half ? uv1 +      (uv2-uv1)*beta : uv0 +      (uv1-uv0)*beta;
         //保证B在A的右边
         if (A.x > B.x) { std::swap(A, B); }// std::swap(uvA, uvB);}
         //用横坐标作为循环控制，对这一行进行着色
         for (int j=A.x; j<=B.x; j++) {
-            //计算当前点在AB之间的比例
+            //在AB之间横向的比例
             float phi = B.x==A.x ? 1. : (float)(j-A.x)/(float)(B.x-A.x);
-            //计算出当前点的坐标,A，B保存了z轴信息
+            //插值计算当前点的坐标
             Vec3i   P = Vec3f(A) + Vec3f(B-A)*phi;
             Vec2i uvP =     uvA +   (uvB-uvA)*phi;
             if (P.x < width && P.y < height)
@@ -103,7 +101,7 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2i uv0, Vec2i uv1, Vec2i uv2, TGA
                 //当前点的z大于zbuffer信息，覆盖掉，并更新zbuffer
                 if (zbuffer[idx]<P.z) {
                     zbuffer[idx] = P.z;
-                    TGAColor color = model->diffuse(uvP);
+                    TGAColor color = model->diffuse(uvP);   // 从贴图中获取纹理颜色
                     image.set(P.x, P.y, TGAColor(color.r*intensity, color.g*intensity, color.b*intensity));
                 }
             }
@@ -127,6 +125,7 @@ int main(int argc, char** argv) {
         zbuffer[i] = std::numeric_limits<int>::min();
     }
 
+    // TODO:面的填色有两种方法，这里只实现了三角形横线扫描填充绘制，还可以通过质心坐标插值进行填充
     //绘制
     {
         Matrix Projection = Matrix::identity(4);
@@ -170,7 +169,7 @@ int main(int argc, char** argv) {
         TGAImage zbimage(width, height, TGAImage::GRAYSCALE);
         for (int i=0; i<width; i++) {
             for (int j=0; j<height; j++) {
-                zbimage.set(i, j, TGAColor(zbuffer[i+j*width], 1));
+                zbimage.set(i, j, TGAColor(zbuffer[i + j * width], 1));
             }
         }
         zbimage.flip_vertically();

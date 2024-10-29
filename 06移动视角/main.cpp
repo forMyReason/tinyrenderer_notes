@@ -31,6 +31,7 @@ Matrix viewport(int x, int y, int w, int h) {
     return m;
 }
 
+// TODO:具体逻辑。Implement the function that generates the lookat matrix
 //朝向矩阵，变换矩阵
 //更改摄像机视角=更改物体位置和角度，操作为互逆矩阵
 //摄像机变换是先旋转再平移，所以物体需要先平移后旋转，且都是逆矩阵
@@ -59,48 +60,63 @@ Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
     Matrix res = rotation*translation;
     return res;
 }
-
-//绘制三角形(坐标1，坐标2，坐标3，顶点光照强度1，顶点光照强度2，顶点光照强度3，tga指针，zbuffer)
+// NEXT::三角形光栅化
+/**
+ * @brief 三角形光栅化 (屏幕空间顶点坐标，灯光强度，uv坐标，顶点到摄像机距离，tga指针，zbuffer)
+ * @param t0/t1/t2 三角形各个点屏幕空间坐标
+ * @param ity0/ity1/ity2 三角形各个点灯光强度
+ * @param uv0/uv1/uv2 三角形各个点uv坐标
+ * @param dis0/dis1/dis2 三角形各个点到摄像机距离
+ */
 void triangle(Vec3i t0, Vec3i t1, Vec3i t2, float ity0, float ity1, float ity2, Vec2i uv0, Vec2i uv1, Vec2i uv2,float dis0, float dis1, float dis2, TGAImage &image, int *zbuffer) {
-    //按照y分割为两个三角形
     if (t0.y==t1.y && t0.y==t2.y) return;
-    if (t0.y>t1.y) { std::swap(t0, t1); std::swap(ity0, ity1); std::swap(uv0, uv1);}
+
+    if (t0.y>t1.y)   { std::swap(t0, t1); std::swap(ity0, ity1); std::swap(uv0, uv1); }
     if (t0.y > t2.y) { std::swap(t0, t2); std::swap(ity0, ity2); std::swap(uv0, uv2); }
     if (t1.y > t2.y) { std::swap(t1, t2); std::swap(ity1, ity2); std::swap(uv1, uv2); }
+
     int total_height = t2.y-t0.y;
-    for (int i=0; i<total_height; i++) {
+    for (int i=0; i<total_height; i++)
+    {
+        // 是否属于上半部分
         bool second_half = i>t1.y-t0.y || t1.y==t0.y;
         int segment_height = second_half ? t2.y-t1.y : t1.y-t0.y;
+
         float alpha = (float)i/total_height;
         float beta  = (float)(i-(second_half ? t1.y-t0.y : 0))/segment_height;
-        //计算A,B两点的坐标
+
+        // 屏幕空间坐标插值，灯光强度插值，uv坐标插值，顶点到摄像机距离插值
         Vec3i A    =               t0  + Vec3f(t2-t0  )*alpha;
-        Vec3i B    = second_half ? t1  + Vec3f(t2-t1  )*beta : t0  + Vec3f(t1-t0  )*beta;
-        //计算A,B两点的光照强度
+        Vec3i B    = second_half ? t1  + Vec3f(t2-t1  )*beta : t0  + Vec3f(t1-t0)*beta;
         float ityA =               ity0 +   (ity2-ity0)*alpha;
-        float ityB = second_half ? ity1 +   (ity2-ity1)*beta : ity0 +   (ity1-ity0)*beta;
-        //计算UV
+        float ityB = second_half ? ity1 +   (ity2-ity1)*beta : ity0 + (ity1-ity0)*beta;
         Vec2i uvA = uv0 + (uv2 - uv0) * alpha;
         Vec2i uvB = second_half ? uv1 + (uv2 - uv1) * beta : uv0 + (uv1 - uv0) * beta;
-        //计算距离
         float disA = dis0 + (dis2 - dis0) * alpha;
         float disB = second_half ? dis1 + (dis2 - dis1) * beta : dis0 + (dis1 - dis0) * beta;
+
+        // 确保A在B的左边
         if (A.x>B.x) { std::swap(A, B); std::swap(ityA, ityB); }
-        //x坐标作为循环控制
+
         for (int j=A.x; j<=B.x; j++) {
             float phi = B.x==A.x ? 1. : (float)(j-A.x)/(B.x-A.x);
-            //计算当前需要绘制点P的坐标，光照强度
+
             Vec3i    P = Vec3f(A) +  Vec3f(B-A)*phi;
             float ityP =    ityA  + (ityB-ityA)*phi;
-            ityP = std::min(1.f, std::abs(ityP)+0.01f);
+            ityP = std::min(1.f, std::abs(ityP)+0.01f);     // 当前插值点的亮度需要保证在0-1之间
             Vec2i uvP = uvA + (uvB - uvA) * phi;
-            float disP = disA + (disB - disA) * phi;
+            float disP = disA + (disB - disA) * phi;        // 计算当前插值点的深度disP
+
+            // 当前插值点在zbuffer中的索引，如果不在，跳过该点
             int idx = P.x+P.y*width;
-            //边界限制
             if (P.x>=width||P.y>=height||P.x<0||P.y<0) continue;
-            if (zbuffer[idx]<P.z) {
+
+            // 如果当前插值点的深度比zbuffer中的深度小，更新zbuffer和image
+            if (zbuffer[idx]<P.z)
+            {
                 zbuffer[idx] = P.z;
                 TGAColor color = model->diffuse(uvP);
+                // 根据亮度和深入调整颜色
                 image.set(P.x, P.y, TGAColor(color.bgra[2], color.bgra[1], color.bgra[0])*ityP*(20.f/std::pow(disP,2.f)));
                 //image.set(P.x, P.y, TGAColor(255,255,255)* ityP);
             }
