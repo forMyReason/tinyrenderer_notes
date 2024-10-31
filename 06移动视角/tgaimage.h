@@ -23,7 +23,13 @@ struct TGA_Header {
 
 
 struct TGAColor {
+    // TODO:为啥要定义这个顺序？
     unsigned char bgra[4];
+    // 图像处理领域中，常见的数据存储顺序有两种：RGB和BGR。
+    // 为什么使用BGRA？
+    // 1. 为了和Windows系统兼容。因为Windows系统中使用的是BGRA存储顺序，而Linux系统中，则使用RGBA的存储顺序。
+    // 2. 某些情况下，BGRA可以更好的与底层硬件/图形API匹配，从而提高性能。比如OpenGL中使用的就是BGRA存储顺序。
+    // 3. 为了和TGA文件格式兼容，因为TGA文件格式中使用的是BGRA存储顺序。
     unsigned char bytespp;
 
     TGAColor() : bgra(), bytespp(1) {

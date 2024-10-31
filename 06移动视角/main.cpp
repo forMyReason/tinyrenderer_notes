@@ -31,18 +31,19 @@ Matrix viewport(int x, int y, int w, int h) {
     return m;
 }
 
-// TODO:具体逻辑。Implement the function that generates the lookat matrix
+//TODO:怪不得之前笔试的时候让推导lookat矩阵
 //朝向矩阵，变换矩阵
 //更改摄像机视角=更改物体位置和角度，操作为互逆矩阵
 //摄像机变换是先旋转再平移，所以物体需要先平移后旋转，且都是逆矩阵
-Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
-    //计算出z，根据z和up算出x，再算出y
+//正好对应之前GAMES中的view矩阵
+Matrix lookat(Vec3f eye, Vec3f center, Vec3f up)
+{
     Vec3f z = (eye - center).normalize();
     Vec3f x = (up ^ z).normalize();
     Vec3f y = (z ^ x).normalize();
     Matrix rotation = Matrix::identity(4);
     Matrix translation = Matrix::identity(4);
-    //***矩阵的第四列是用于平移的。因为观察位置从原点变为了center，所以需要将物体平移-center***
+    //矩阵的第四列是用于平移的。因为观察位置从原点变为了center，所以需要将物体平移-center
     for (int i = 0; i < 3; i++) {
         rotation[i][3] = -center[i];
     }
@@ -60,7 +61,7 @@ Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
     Matrix res = rotation*translation;
     return res;
 }
-// NEXT::三角形光栅化
+
 /**
  * @brief 三角形光栅化 (屏幕空间顶点坐标，灯光强度，uv坐标，顶点到摄像机距离，tga指针，zbuffer)
  * @param t0/t1/t2 三角形各个点屏幕空间坐标
@@ -88,6 +89,7 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, float ity0, float ity1, float ity2, 
         // 屏幕空间坐标插值，灯光强度插值，uv坐标插值，顶点到摄像机距离插值
         Vec3i A    =               t0  + Vec3f(t2-t0  )*alpha;
         Vec3i B    = second_half ? t1  + Vec3f(t2-t1  )*beta : t0  + Vec3f(t1-t0)*beta;
+        // 因为加入了对于光照强度的插值，所以最终渲染的结果会更加真实
         float ityA =               ity0 +   (ity2-ity0)*alpha;
         float ityB = second_half ? ity1 +   (ity2-ity1)*beta : ity0 + (ity1-ity0)*beta;
         Vec2i uvA = uv0 + (uv2 - uv0) * alpha;
@@ -101,6 +103,8 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, float ity0, float ity1, float ity2, 
         for (int j=A.x; j<=B.x; j++) {
             float phi = B.x==A.x ? 1. : (float)(j-A.x)/(B.x-A.x);
 
+            // 插值计算当前绘制点的屏幕空间坐标，灯光强度，uv坐标，顶点到摄像机距离
+            // 这样每一个点就不是同一个光照强度了，而是根据插值计算出来的，于是消除了光照的跳变
             Vec3i    P = Vec3f(A) +  Vec3f(B-A)*phi;
             float ityP =    ityA  + (ityB-ityA)*phi;
             ityP = std::min(1.f, std::abs(ityP)+0.01f);     // 当前插值点的亮度需要保证在0-1之间
@@ -160,6 +164,7 @@ int main(int argc, char** argv) {
             Vec3i screen_coords[3];
             float intensity[3];
             float distance[3];
+            
             for (int j=0; j<3; j++) {
                 Vec3f v = model->vert(face[j]);
                 Matrix m_v = ModelView* Matrix(v);
